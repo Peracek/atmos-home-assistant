@@ -36,10 +36,18 @@ export class AtmosClient {
     }
   }
 
-  extractViewState(xmlResponse) {
+  extractViewStateFromXml(xmlResponse) {
     const match = xmlResponse.match(
       /<update[^>]*id="[^"]*jakarta\.faces\.ViewState[^"]*"[^>]*><!\[CDATA\[([^\]]+)\]\]><\/update>/
     );
+    if (match && match[1]) {
+      this.viewState = match[1];
+    }
+  }
+
+  extractViewStateFromHtml(html) {
+    // Look for hidden input with ViewState
+    const match = html.match(/name="jakarta\.faces\.ViewState"[^>]*value="([^"]+)"/);
     if (match && match[1]) {
       this.viewState = match[1];
     }
@@ -49,14 +57,31 @@ export class AtmosClient {
     return this.sessionId ? `JSESSIONID=${this.sessionId}` : '';
   }
 
+  async get(endpoint) {
+    const url = `${BASE_URL}${endpoint}?jfwid=${this.clientWindow}`;
+
+    const headers = {
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+    };
+
+    const cookie = this.buildCookieHeader();
+    if (cookie) headers['Cookie'] = cookie;
+
+    const response = await this.axios.get(url, { headers });
+    this.extractCookies(response);
+
+    return response.data;
+  }
+
   async post(endpoint, params, isAjax = false) {
     const url = `${BASE_URL}${endpoint}?jfwid=${this.clientWindow}`;
     const body = new URLSearchParams(params).toString();
 
     const headers = {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Accept': 'application/xml, text/xml, */*; q=0.01',
-      'User-Agent': 'AtmosHistoryCli/1.0',
+      'Accept': isAjax ? 'application/xml, text/xml, */*; q=0.01' : 'text/html,application/xhtml+xml',
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
     };
 
     if (isAjax) {
@@ -70,57 +95,55 @@ export class AtmosClient {
     const response = await this.axios.post(url, body, { headers });
     this.extractCookies(response);
 
-    if (response.status === 302) return 'REDIRECT';
-    return response.data;
+    if (response.status === 302) {
+      return { redirect: true, location: response.headers['location'] };
+    }
+    return { redirect: false, data: response.data };
   }
 
   async login(username, password) {
+    // First, load the login page to get initial ViewState
+    const loginPage = await this.get('/login.html');
+    this.extractViewStateFromHtml(loginPage);
+
     const params = {
       'fLogin:userNameId': username,
       'fLogin:passwordId': password,
       'fLogin:j_id_1l': '',
       'fLogin_SUBMIT': '1',
-      'jakarta.faces.ViewState': 'stateless',
+      'jakarta.faces.ViewState': this.viewState,
       'jakarta.faces.ClientWindow': this.clientWindow,
     };
 
     const response = await this.post('/login.html', params, false);
 
-    if (response === 'REDIRECT' && this.sessionId) {
+    if (response.redirect && this.sessionId) {
+      // Follow redirect to establish session - load the target page
+      const targetPath = response.location || '/appl/devicehome.html';
+      const homePage = await this.get(targetPath);
+      this.extractViewStateFromHtml(homePage);
       return true;
     }
     throw new Error('Login failed: Invalid credentials');
   }
 
-  async navigateToInfo() {
-    const params = {
-      'jakarta.faces.partial.ajax': 'true',
-      'jakarta.faces.source': 'fDeviceHome:j_id_7y',
-      'jakarta.faces.partial.render': 'fDeviceHome',
-      'fDeviceHome_SUBMIT': '1',
-      'jakarta.faces.ViewState': this.viewState,
-      'jakarta.faces.ClientWindow': this.clientWindow,
-    };
-
-    const response = await this.post('/appl/devicehome.html', params, true);
-    this.extractViewState(response);
-    return response;
-  }
-
   async pollTemperatures() {
+    // Use the home page poll to get temperature data
     const params = {
       'jakarta.faces.partial.ajax': 'true',
-      'jakarta.faces.source': 'fDeviceHome:pollReloadInfo',
-      'jakarta.faces.partial.execute': 'fDeviceHome:pollReloadInfo',
-      'jakarta.faces.partial.render': 'fDeviceHome:infoPanel',
-      'fDeviceHome:pollReloadInfo': 'fDeviceHome:pollReloadInfo',
+      'jakarta.faces.source': 'fDeviceHome:homePageDataPollId',
+      'jakarta.faces.partial.execute': 'fDeviceHome:homePageDataPollId',
+      'jakarta.faces.partial.render': 'fDeviceHome:homePartId',
       'fDeviceHome_SUBMIT': '1',
       'jakarta.faces.ViewState': this.viewState,
       'jakarta.faces.ClientWindow': this.clientWindow,
     };
 
     const response = await this.post('/appl/devicehome.html', params, true);
-    this.extractViewState(response);
-    return response;
+    if (!response.redirect) {
+      this.extractViewStateFromXml(response.data);
+      return response.data;
+    }
+    throw new Error('Session expired - redirected to login');
   }
 }
