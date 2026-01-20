@@ -1,0 +1,19 @@
+{
+  "name": "atmos-history-cli",
+  "version": "1.0.0",
+  "description": "Simple CLI tool to poll temperature data from Atmos Cloud and log to CSV",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.0",
+    "fast-xml-parser": "^4.3.0",
+    "htmlparser2": "^9.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
