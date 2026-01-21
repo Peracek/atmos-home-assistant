@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Atmos Temperatures</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <style>
+    body { font-family: sans-serif; max-width: 1100px; margin: 40px auto; padding: 0 20px; }
+    #chart { width: 100%; height: 700px; margin-top: 20px; }
+    #status { color: #666; }
+  </style>
+</head>
+<body>
+  <h1>Atmos Temperatures</h1>
+  <div id="status">Loading...</div>
+  <div id="chart"></div>
+
+  <script>
+    const chartDom = document.getElementById('chart');
+    const chart = echarts.init(chartDom);
+
+    async function loadData() {
+      try {
+        const res = await fetch('/atmos_history.csv');
+        if (!res.ok) throw new Error('CSV not found');
+        const text = await res.text();
+
+        const lines = text.trim().split('\n');
+        const headers = lines[0].split(',');
+
+        const pfIdx = headers.indexOf('pf');
+        const pf2Idx = headers.indexOf('pf2');
+        const pf3Idx = headers.indexOf('pf3');
+        const roomIdx = headers.indexOf('roomTemp');
+        const agfIdx = headers.indexOf('agf');
+        const sfIdx = headers.indexOf('sf');
+
+        const timestamps = [];
+        const roomTemp = [], pf = [], pf2 = [], pf3 = [], agf = [], sf = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',');
+          if (cols.length < 2) continue;
+
+          timestamps.push(cols[0]);
+          roomTemp.push(parseFloat(cols[roomIdx]) || null);
+          pf.push(parseFloat(cols[pfIdx]) || null);
+          pf2.push(parseFloat(cols[pf2Idx]) || null);
+          pf3.push(parseFloat(cols[pf3Idx]) || null);
+          agf.push(agfIdx >= 0 ? (parseFloat(cols[agfIdx]) || null) : null);
+          sf.push(sfIdx >= 0 ? (parseFloat(cols[sfIdx]) || null) : null);
+        }
+
+        document.getElementById('status').textContent = `${timestamps.length} readings`;
+
+        const option = {
+          tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'cross' }
+          },
+          legend: {
+            data: ['Room Temp', 'PF (top)', 'PF2 (mid)', 'PF3 (bot)', 'SF', 'AGF'],
+            top: 0
+          },
+          axisPointer: {
+            link: [{ xAxisIndex: 'all' }]
+          },
+          grid: [
+            {
+              left: 60,
+              right: 40,
+              top: 50,
+              height: '45%'
+            },
+            {
+              left: 60,
+              right: 40,
+              top: '62%',
+              height: '20%'
+            }
+          ],
+          xAxis: [
+            {
+              type: 'category',
+              data: timestamps,
+              gridIndex: 0,
+              axisLabel: { show: false },
+              axisTick: { show: false }
+            },
+            {
+              type: 'category',
+              data: timestamps,
+              gridIndex: 1,
+              axisLabel: {
+                formatter: function(value) {
+                  return new Date(value).toLocaleTimeString();
+                }
+              }
+            }
+          ],
+          yAxis: [
+            {
+              type: 'value',
+              name: '°C',
+              nameLocation: 'middle',
+              nameGap: 40,
+              gridIndex: 0
+            },
+            {
+              type: 'value',
+              name: 'AGF °C',
+              nameLocation: 'middle',
+              nameGap: 40,
+              gridIndex: 1
+            }
+          ],
+          dataZoom: [
+            {
+              type: 'slider',
+              xAxisIndex: [0, 1],
+              start: 0,
+              end: 100,
+              bottom: 20
+            },
+            {
+              type: 'inside',
+              xAxisIndex: [0, 1],
+              start: 0,
+              end: 100
+            }
+          ],
+          series: [
+            {
+              name: 'Room Temp',
+              type: 'line',
+              xAxisIndex: 0,
+              yAxisIndex: 0,
+              data: roomTemp,
+              showSymbol: false,
+              lineStyle: { color: '#e74c3c' },
+              itemStyle: { color: '#e74c3c' }
+            },
+            {
+              name: 'PF (top)',
+              type: 'line',
+              xAxisIndex: 0,
+              yAxisIndex: 0,
+              data: pf,
+              showSymbol: false,
+              lineStyle: { color: '#3498db' },
+              itemStyle: { color: '#3498db' }
+            },
+            {
+              name: 'PF2 (mid)',
+              type: 'line',
+              xAxisIndex: 0,
+              yAxisIndex: 0,
+              data: pf2,
+              showSymbol: false,
+              lineStyle: { color: '#2ecc71' },
+              itemStyle: { color: '#2ecc71' }
+            },
+            {
+              name: 'PF3 (bot)',
+              type: 'line',
+              xAxisIndex: 0,
+              yAxisIndex: 0,
+              data: pf3,
+              showSymbol: false,
+              lineStyle: { color: '#e67e22' },
+              itemStyle: { color: '#e67e22' }
+            },
+            {
+              name: 'SF',
+              type: 'line',
+              xAxisIndex: 0,
+              yAxisIndex: 0,
+              data: sf,
+              showSymbol: false,
+              lineStyle: { color: '#1abc9c' },
+              itemStyle: { color: '#1abc9c' }
+            },
+            {
+              name: 'AGF',
+              type: 'line',
+              xAxisIndex: 1,
+              yAxisIndex: 1,
+              data: agf,
+              showSymbol: false,
+              lineStyle: { color: '#9b59b6' },
+              itemStyle: { color: '#9b59b6' }
+            }
+          ]
+        };
+
+        chart.setOption(option);
+      } catch (err) {
+        document.getElementById('status').textContent = 'Error: ' + err.message;
+      }
+    }
+
+    window.addEventListener('resize', function() {
+      chart.resize();
+    });
+
+    loadData();
+  </script>
+</body>
+</html>
