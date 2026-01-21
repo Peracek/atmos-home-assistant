@@ -18,6 +18,30 @@
     const chartDom = document.getElementById('chart');
     const chart = echarts.init(chartDom);
 
+    function buildKomfortRanges(data) {
+      // data is array of { ts, mode }
+      const ranges = [];
+      let rangeStart = null;
+
+      for (let i = 0; i < data.length; i++) {
+        const isKomfort = data[i].mode === 'Auto (Komfort)';
+
+        if (isKomfort && rangeStart === null) {
+          rangeStart = data[i].ts;
+        } else if (!isKomfort && rangeStart !== null) {
+          ranges.push({ start: rangeStart, end: data[i - 1].ts });
+          rangeStart = null;
+        }
+      }
+
+      // Close any open range
+      if (rangeStart !== null && data.length > 0) {
+        ranges.push({ start: rangeStart, end: data[data.length - 1].ts });
+      }
+
+      return ranges;
+    }
+
     async function loadData() {
       try {
         const res = await fetch('/atmos_history.csv');
@@ -33,9 +57,11 @@
         const roomIdx = headers.indexOf('roomTemp');
         const agfIdx = headers.indexOf('agf');
         const sfIdx = headers.indexOf('sf');
+        const heatingModeIdx = headers.indexOf('heating_mode');
 
         // Use [timestamp, value] pairs for time-based x-axis
         const roomTemp = [], pf = [], pf2 = [], pf3 = [], agf = [], sf = [];
+        const heatingModeData = [];
         let count = 0;
 
         for (let i = 1; i < lines.length; i++) {
@@ -52,9 +78,28 @@
           pf3.push([ts, parseFloat(cols[pf3Idx]) || null]);
           agf.push([ts, agfIdx >= 0 ? (parseFloat(cols[agfIdx]) || null) : null]);
           sf.push([ts, sfIdx >= 0 ? (parseFloat(cols[sfIdx]) || null) : null]);
+
+          if (heatingModeIdx >= 0) {
+            heatingModeData.push({ ts, mode: cols[heatingModeIdx] || '' });
+          }
         }
 
         document.getElementById('status').textContent = `${count} readings`;
+
+        // Build markArea data for Komfort mode ranges
+        const komfortRanges = buildKomfortRanges(heatingModeData);
+        const markAreaData = komfortRanges.map(r => [
+          { xAxis: r.start },
+          { xAxis: r.end }
+        ]);
+
+        const markAreaConfig = {
+          silent: true,
+          itemStyle: {
+            color: 'rgba(255, 193, 7, 0.15)'
+          },
+          data: markAreaData
+        };
 
         const option = {
           tooltip: {
@@ -134,7 +179,8 @@
               data: roomTemp,
               showSymbol: false,
               lineStyle: { color: '#e74c3c' },
-              itemStyle: { color: '#e74c3c' }
+              itemStyle: { color: '#e74c3c' },
+              markArea: markAreaConfig
             },
             {
               name: 'PF (top)',
@@ -184,7 +230,8 @@
               data: agf,
               showSymbol: false,
               lineStyle: { color: '#9b59b6' },
-              itemStyle: { color: '#9b59b6' }
+              itemStyle: { color: '#9b59b6' },
+              markArea: markAreaConfig
             }
           ]
         };
