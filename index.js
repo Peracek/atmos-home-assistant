@@ -29,7 +29,7 @@ async function main() {
   console.log('Login successful');
 
   console.log('Waiting for device connection...');
-  const connected = await client.waitForConnection(10000, 500);
+  const connected = await client.waitForConnection(15000, 2000);
 
   if (connected) {
     console.log('Device connected');
@@ -43,7 +43,7 @@ async function main() {
     }
     console.log('Info page loaded');
   } else {
-    console.log('Device not connected after 10s, using home page data');
+    console.log('Device not connected after 15s, using home page data');
   }
 
   initCsv(outputFile);

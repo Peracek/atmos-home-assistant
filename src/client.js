@@ -151,16 +151,25 @@ export class AtmosClient {
     throw new Error('Session expired - redirected to login');
   }
 
+  // Reload the home page (full page load, not AJAX)
+  async reloadHomePage() {
+    const homePage = await this.get('/appl/devicehome.html');
+    this.extractViewStateFromHtml(homePage);
+    return homePage;
+  }
+
   // Wait for device to connect (max 10 seconds)
-  async waitForConnection(maxWaitMs = 10000, pollIntervalMs = 500) {
+  // Reloads the page when "Waiting for data" warning is present
+  async waitForConnection(maxWaitMs = 10000, reloadIntervalMs = 2000) {
     const startTime = Date.now();
 
     while (Date.now() - startTime < maxWaitMs) {
-      const xml = await this.pollHomePage();
-      if (this.isDeviceConnected(xml)) {
+      const html = await this.reloadHomePage();
+      if (this.isDeviceConnected(html)) {
         return true;
       }
-      await new Promise(r => setTimeout(r, pollIntervalMs));
+      console.log('Device waiting for data, reloading...');
+      await new Promise(r => setTimeout(r, reloadIntervalMs));
     }
 
     return false; // Timeout - device still not connected
