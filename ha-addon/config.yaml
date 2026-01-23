@@ -1,0 +1,25 @@
+name: "Atmos History Scraper"
+description: "Scrapes temperature data from Atmos Cloud and logs to CSV"
+version: "1.0.0"
+slug: "atmos_history_scraper"
+init: false
+arch:
+  - amd64
+  - aarch64
+  - armv7
+  - armhf
+  - i386
+startup: services
+boot: auto
+options:
+  username: ""
+  password: ""
+  poll_interval: 60
+  output_file: "/share/atmos_history.csv"
+schema:
+  username: str
+  password: password
+  poll_interval: int(10,3600)
+  output_file: str
+map:
+  - share:rw
