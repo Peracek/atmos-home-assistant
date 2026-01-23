@@ -2,3 +2,6 @@
 index.js
 package.json
 src/
+
+# Contains credentials - DO NOT COMMIT
+.env
