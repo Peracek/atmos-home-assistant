@@ -1,6 +1,6 @@
 name: "Atmos Integration"
-description: "Integrates Atmos Cloud heating system with Home Assistant, providing temperature monitoring and data logging"
-version: "1.0.0"
+description: "Integrates Atmos Cloud heating system with Home Assistant via REST API"
+version: "1.1.0"
 slug: "atmos_integration"
 init: false
 arch:
@@ -11,15 +11,16 @@ arch:
   - i386
 startup: services
 boot: auto
+ports:
+  8099/tcp: 8099
+ports_description:
+  8099/tcp: "REST API for sensor data"
+host_network: true
 options:
   username: ""
   password: ""
   poll_interval: 120
-  output_file: "/share/atmos_history.csv"
 schema:
   username: str
   password: password
   poll_interval: int(10,3600)
-  output_file: str
-map:
-  - share:rw

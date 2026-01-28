@@ -19,4 +19,7 @@ COPY src/ ./src/
 COPY run.sh /
 RUN chmod a+x /run.sh
 
+# Expose REST API port
+EXPOSE 8099
+
 CMD [ "/run.sh" ]

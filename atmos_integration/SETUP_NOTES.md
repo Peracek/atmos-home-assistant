@@ -105,14 +105,45 @@ curl -s "http://$GRAFANA_HOST:$GRAFANA_PORT/api/dashboards/db" \
 
 **Config file**: `/homeassistant/configuration.yaml`
 
-### Sensors (command_line):
-| Sensor | Entity ID | CSV Column | Description |
-|--------|-----------|------------|-------------|
-| Akumulace top | sensor.akumulace_top | 2 (pf) | Tank top temp |
-| Akumulace mid | sensor.akumulace_mid | 3 (pf2) | Tank mid temp |
-| Akumulace bot | sensor.akumulace_bot | 4 (pf3) | Tank bottom temp |
-| Bojler | sensor.bojler | 7 (sf) | Hot water tank |
-| Termostat | sensor.termostat | 12 (roomTemp) | Room temperature |
+### REST Sensors:
+
+The Atmos addon exposes a REST API at `http://localhost:8099/api/sensors`. Configure REST sensors in `configuration.yaml`:
+
+```yaml
+rest:
+  - resource: http://localhost:8099/api/sensors
+    scan_interval: 120
+    sensor:
+      - name: "Atmos Akumulace Top"
+        value_template: "{{ value_json.sensors.pf }}"
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+
+      - name: "Atmos Akumulace Mid"
+        value_template: "{{ value_json.sensors.pf2 }}"
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+
+      - name: "Atmos Akumulace Bottom"
+        value_template: "{{ value_json.sensors.pf3 }}"
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+
+      - name: "Atmos Bojler"
+        value_template: "{{ value_json.sensors.sf }}"
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+
+      - name: "Atmos Termostat"
+        value_template: "{{ value_json.sensors.roomTemp }}"
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+```
 
 ### InfluxDB integration:
 ```yaml
@@ -126,35 +157,33 @@ influxdb:
   override_measurement: measurements
   include:
     entities:
-      - sensor.akumulace_top
-      - sensor.akumulace_mid
-      - sensor.akumulace_bot
-      - sensor.bojler
-      - sensor.termostat
+      - sensor.atmos_akumulace_top
+      - sensor.atmos_akumulace_mid
+      - sensor.atmos_akumulace_bottom
+      - sensor.atmos_bojler
+      - sensor.atmos_termostat
 ```
 
 ---
 
-## 5. Atmos Scraper Addon
+## 5. Atmos Integration Addon
 
-**Location**: `/addons/atmos_history_scraper`
+**Location**: `/addons/atmos_integration`
 
-**Output file**: `/share/atmos_history.csv`
+**REST API**: `http://localhost:8099/api/sensors`
 
 **Configuration** (in HA addon settings):
 - username: (your Atmos Cloud username)
 - password: (your Atmos Cloud password)
-- poll_interval: 60
-- output_file: /share/atmos_history.csv
+- poll_interval: 120
 
 ---
 
 ## 6. Useful Commands
 
-### Check CSV data:
+### Test REST API:
 ```bash
-source .env
-sshpass -p "$HA_SSH_PASSWORD" ssh $HA_SSH_USER@$HA_HOST "tail -5 /share/atmos_history.csv"
+curl http://localhost:8099/api/sensors
 ```
 
 ### Check InfluxDB measurements:
@@ -183,21 +212,18 @@ Do it from UI: Settings → System → Restart
 
 ---
 
-## 7. CSV Column Reference
+## 7. Sensor Reference
 
-| Column | Index | Description |
-|--------|-------|-------------|
-| timestamp | 1 | ISO 8601 timestamp |
-| pf | 2 | Akumulace top |
-| pf2 | 3 | Akumulace mid |
-| pf3 | 4 | Akumulace bot |
-| af | 5 | Outdoor temp |
-| wf | 6 | Boiler temp |
-| sf | 7 | Hot water (Bojler) |
-| vf1 | 8 | Heating circuit 1 |
-| vf3 | 9 | Heating circuit 3 |
-| agf | 10 | Flue gas temp |
-| info1 | 11 | Info value |
-| roomTemp | 12 | Room temperature |
-| humidity | 13 | Humidity |
-| ... | ... | (see CSV header for full list) |
+| Sensor Key | Description |
+|------------|-------------|
+| pf | Accumulator tank top |
+| pf2 | Accumulator tank middle |
+| pf3 | Accumulator tank bottom |
+| af | Outdoor temperature |
+| wf | Boiler temperature |
+| sf | Hot water (Bojler) |
+| vf1 | Heating circuit 1 |
+| vf3 | Heating circuit 3 |
+| agf | Flue gas temperature |
+| roomTemp | Room temperature |
+| humidity | Room humidity |

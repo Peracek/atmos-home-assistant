@@ -1,18 +1,39 @@
 #!/usr/bin/env node
 import 'dotenv/config';
+import { createServer } from 'http';
 import { AtmosClient } from './src/client.js';
 import { parseTemperatures } from './src/parser.js';
-import { initCsv, appendRow } from './src/csv.js';
 
 const username = process.env.ATMOS_USERNAME || getArg('--username');
 const password = process.env.ATMOS_PASSWORD || getArg('--password');
 const interval = parseInt(process.env.POLL_INTERVAL || getArg('--interval') || '60', 10) * 1000;
-const outputFile = process.env.OUTPUT_FILE || getArg('--output') || 'atmos_history.csv';
+const apiPort = parseInt(process.env.API_PORT || getArg('--port') || '8099', 10);
 const debug = process.argv.includes('--debug');
+
+let latestData = null;
 
 function getArg(name) {
   const idx = process.argv.indexOf(name);
   return idx !== -1 ? process.argv[idx + 1] : null;
+}
+
+function startApiServer() {
+  const server = createServer((req, res) => {
+    if (req.method === 'GET' && req.url === '/api/sensors') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(latestData || { error: 'No data yet' }));
+    } else {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Not found' }));
+    }
+  });
+
+  server.listen(apiPort, () => {
+    console.log(`API server listening on port ${apiPort}`);
+    console.log(`Endpoint: http://localhost:${apiPort}/api/sensors`);
+  });
+
+  return server;
 }
 
 async function main() {
@@ -46,8 +67,8 @@ async function main() {
     console.log('Device not connected after 15s, using home page data');
   }
 
-  initCsv(outputFile);
-  console.log(`Logging to ${outputFile} every ${interval / 1000}s`);
+  startApiServer();
+  console.log(`Polling Atmos Cloud every ${interval / 1000}s`);
   console.log('Press Ctrl+C to stop\n');
 
   let running = true;
@@ -66,10 +87,15 @@ async function main() {
       }
       const data = parseTemperatures(xml);
 
-      // Only write if we have actual sensor data (more than just timestamp)
+      // Only update if we have actual sensor data (more than just timestamp)
       const sensorKeys = Object.keys(data).filter(k => k !== 'timestamp');
       if (sensorKeys.length > 0) {
-        appendRow(outputFile, data);
+        // Store data for API
+        const { timestamp, ...sensors } = data;
+        latestData = {
+          timestamp: timestamp.toISOString(),
+          sensors
+        };
 
         const temps = sensorKeys.map(k => `${k}=${data[k]}`).join(' ');
         console.log(`[${data.timestamp.toISOString()}] ${temps}`);
