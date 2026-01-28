@@ -2,7 +2,7 @@
 
 This repository contains Home Assistant addons for integrating with Atmos Cloud heating systems.
 
-[![Add repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FPeracek%2FAtmosHistory)
+[![Add repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FPeracek%2Fatmos-home-assistant)
 
 ## Installation
 
@@ -13,7 +13,7 @@ This repository contains Home Assistant addons for integrating with Atmos Cloud 
 5. Select **Repositories**
 6. Add this repository URL:
    ```
-   https://github.com/Peracek/AtmosHistory
+   https://github.com/Peracek/atmos-home-assistant
    ```
 7. Click **Add** and then **Close**
 8. Refresh the page, find **Atmos Integration** in the store, and click **Install**
