@@ -43,7 +43,24 @@ async function main() {
     process.exit(1);
   }
 
+  const MAX_CONSECUTIVE_FAILURES = 3;
+  let consecutiveFailures = 0;
+
   const client = new AtmosClient();
+
+  async function reinitializeSession() {
+    console.log('Reinitializing session...');
+    await client.login(username, password);
+    console.log('Login successful');
+
+    const connected = await client.waitForConnection(15000, 2000);
+    if (connected) {
+      await client.navigateToInfo();
+      console.log('Session restored, Info page loaded');
+    } else {
+      console.log('Session restored, using home page data');
+    }
+  }
 
   console.log('Logging in to Atmos Cloud...');
   await client.login(username, password);
@@ -99,11 +116,23 @@ async function main() {
 
         const temps = sensorKeys.map(k => `${k}=${data[k]}`).join(' ');
         console.log(`[${data.timestamp.toISOString()}] ${temps}`);
+        consecutiveFailures = 0;
       } else if (debug) {
         console.log(`[${data.timestamp.toISOString()}] (no data)`);
       }
     } catch (err) {
       console.error('Poll error:', err.message);
+      consecutiveFailures++;
+
+      if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+        console.log(`${consecutiveFailures} consecutive failures, attempting recovery...`);
+        try {
+          await reinitializeSession();
+          consecutiveFailures = 0;
+        } catch (recoveryErr) {
+          console.error('Recovery failed:', recoveryErr.message);
+        }
+      }
     }
 
     await new Promise((r) => setTimeout(r, interval));

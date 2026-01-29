@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1] - 2025-01-29
+
+### Fixed
+- Auto-recovery on session expiration or consecutive poll failures
+- After 3 consecutive failures, automatically re-authenticates and restores the session
+- Handles session expiration, network timeouts, server errors, and other transient failures
+
 ## [1.1.0] - 2025-01-28
 
 ### Changed

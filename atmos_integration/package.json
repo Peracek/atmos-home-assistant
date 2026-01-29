@@ -1,6 +1,6 @@
 {
   "name": "atmos-integration",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "description": "Home Assistant addon to integrate Atmos Cloud heating system",
   "main": "index.js",
   "type": "module",
